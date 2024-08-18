@@ -45,7 +45,7 @@ System.out.println(info.getAuthorInfo());
 Fetch video information asynchronously with a callback:
 
 ```java
-YTDL.getInfo("eYfjh0U6uQU", new YtdlResponse<>() {
+YTDL.getInfoAsync("eYfjh0U6uQU", new YtdlResponse<>() {
   @Override
   public void onResponse(VideoInfo videoInfo) {
     System.out.println(videoInfo.getFormats());
