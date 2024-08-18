@@ -74,10 +74,6 @@ Ytdl-Java provides an intuitive API to interact with YouTube data. Here are some
     - `getLikes()`: Returns the number of likes.
     - `getViews()`: Returns the number of views.
 
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a pull request or open an issue.
