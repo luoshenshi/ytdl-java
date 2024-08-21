@@ -66,7 +66,7 @@ Ytdl-Java provides an intuitive API to interact with YouTube data. Here are some
 
 - **`YTDL`**
     - `getInfo(String videoId)`: Retrieves video information synchronously.
-    - `getInfo(String videoId, YtdlResponse<VideoInfo> response)`: Retrieves video information asynchronously.
+    - `getInfoAsync(String videoId, YtdlResponse<VideoInfo> response)`: Retrieves video information asynchronously.
 
 - **`VideoInfo`**
     - `getTitle()`: Returns the title of the video.
