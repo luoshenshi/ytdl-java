@@ -1,9 +1,6 @@
 package io.github.luoshenshi;
 
-import okhttp3.Call;
-import okhttp3.Callback;
-import okhttp3.Request;
-import okhttp3.Response;
+import okhttp3.*;
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONObject;
 
@@ -12,72 +9,86 @@ import java.util.concurrent.CompletableFuture;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static io.github.luoshenshi.YtdlConstants.client;
-
 public class Utils {
-    public static Integer parseAbbreviatedNumber(String input) {
-        if (input == null || input.isEmpty()) {
-            return null;
+
+    public static String between(String haystack, String left, String right) {
+        int pos = haystack.indexOf(left);
+        if (pos == -1) return "";
+        pos += left.length();
+        String substring = haystack.substring(pos);
+        int endPos = substring.indexOf(right);
+        if (endPos == -1) return "";
+        return substring.substring(0, endPos);
+    }
+
+    public static String betweenRegex(String haystack, String leftRegex, String right) {
+        Pattern pattern = Pattern.compile(leftRegex, Pattern.CASE_INSENSITIVE);
+        Matcher matcher = pattern.matcher(haystack);
+        if (!matcher.find()) return "";
+        int pos = matcher.end();
+        String substring = haystack.substring(pos);
+        int endPos = substring.indexOf(right);
+        if (endPos == -1) return "";
+        return substring.substring(0, endPos);
+    }
+
+    public static String cutAfterJS(String mixedJson) throws Exception {
+        char open, close;
+        if (mixedJson.charAt(0) == '[') {
+            open = '[';
+            close = ']';
+        } else if (mixedJson.charAt(0) == '{') {
+            open = '{';
+            close = '}';
+        } else {
+            throw new Exception("Can't cut unsupported JSON: " + mixedJson.charAt(0));
         }
 
-        // Replace ',' with '.' and remove spaces
-        String sanitizedInput = input.replace(",", ".").replace(" ", "");
+        int counter = 0;
+        boolean inString = false;
+        boolean escaped = false;
 
-        // Regular expression to match the number with optional 'M' or 'K'
-        Pattern pattern = Pattern.compile("([\\d,.]+)([MK]?)");
-        Matcher matcher = pattern.matcher(sanitizedInput);
+        for (int i = 0; i < mixedJson.length(); i++) {
+            char c = mixedJson.charAt(i);
 
-        if (matcher.find()) {
-            String numString = matcher.group(1);
-            String multi = matcher.group(2);
+            if (escaped) {
+                escaped = false;
+                continue;
+            }
 
-            try {
-                double num = Double.parseDouble(numString);
-                if ("M".equals(multi)) {
-                    return (int) Math.round(num * 1_000_000);
-                } else if ("K".equals(multi)) {
-                    return (int) Math.round(num * 1_000);
-                } else {
-                    return (int) Math.round(num);
-                }
-            } catch (NumberFormatException e) {
-                // Handle the case where parsing fails
-                return null;
+            if (c == '\\') {
+                escaped = true;
+                continue;
+            }
+
+            if (c == '"') {
+                inString = !inString;
+                continue;
+            }
+
+            if (!inString) {
+                if (c == open) counter++;
+                else if (c == close) counter--;
+
+                if (counter == 0) return mixedJson.substring(0, i + 1);
             }
         }
-        return null;
+        throw new Exception("No matching closing bracket found");
     }
 
-    public static String findBetween(String string, String start, String end) {
-        int startIndex = string.indexOf(start);
-        if (startIndex == -1) return null;
-        startIndex += start.length();
-        int endIndex = string.indexOf(end, startIndex);
-        if (endIndex == -1) return null;
-        return string.substring(startIndex, endIndex);
+    public static Exception playError(JSONObject playerResponse) {
+        if (playerResponse == null) return null;
+        JSONObject playability = playerResponse.optJSONObject("playabilityStatus");
+        if (playability == null) return null;
+
+        String status = playability.optString("status");
+        if ("OK".equals(status)) return null;
+
+        String reason = playability.optString("reason", "Unknown error");
+        return new Exception(reason);
     }
 
-    public static String findBetween(String text) {
-        String start = "var ytInitialPlayerResponse = ";
-        int startPos = text.indexOf(start);
-        if (startPos == -1) return "";
-        int endPos = text.indexOf(";</script>", startPos + start.length());
-        if (endPos == -1) return "";
-        return text.substring(startPos + start.length(), endPos);
-    }
-
-    public static JSONObject parseJSON(String source, String varName, String json) throws Exception {
-        if (json == null || json.trim().isEmpty()) {
-            return null;
-        }
-        try {
-            return new JSONObject(json);
-        } catch (Exception e) {
-            throw new Exception("Error parsing " + varName + " in " + source + ": " + e.getMessage());
-        }
-    }
-
-    public static CompletableFuture<String> request(String url) {
+    public static CompletableFuture<String> request(OkHttpClient client, String url) {
         Request request = new Request.Builder().url(url).build();
         CompletableFuture<String> future = new CompletableFuture<>();
 
@@ -85,47 +96,25 @@ public class Utils {
             @Override
             public void onFailure(@NotNull Call call, @NotNull IOException e) {
                 future.completeExceptionally(e);
-                client.dispatcher().executorService().shutdown();
-                client.connectionPool().evictAll();
-                if (client.cache() != null) {
-                    try {
-                        client.cache().close();
-                    } catch (IOException ioException) {
-                        throw new IllegalArgumentException(ioException.getLocalizedMessage());
-                    }
-                }
             }
 
             @Override
             public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException {
                 try (response) {
-                    if (response.isSuccessful()) {
-                        assert response.body() != null;
+                    if (response.isSuccessful() && response.body() != null) {
                         future.complete(response.body().string());
                     } else {
-                        future.completeExceptionally(new IOException("Request failed with status code: " + response.code()));
-                    }
-                } finally {
-                    client.dispatcher().executorService().shutdown();
-                    client.connectionPool().evictAll();
-                    if (client.cache() != null) {
-                        try {
-                            client.cache().close();
-                        } catch (IOException ioException) {
-                            throw new Error(ioException);
-                        }
+                        future.completeExceptionally(new IOException("Status code: " + response.code()));
                     }
                 }
             }
         });
-
         return future;
     }
 
     public static JSONObject tryParseBetween(String body, String left, String right, String prepend, String append) {
         try {
-            String data = findBetween(body, left, right);
-            assert data != null;
+            String data = between(body, left, right);
             if (data.isEmpty()) return null;
             return new JSONObject(prepend + data + append);
         } catch (Exception e) {
@@ -133,12 +122,9 @@ public class Utils {
         }
     }
 
-    public static JSONObject findJSON(String source, String varName, String body, String left, String right, String prependJSON) throws Exception {
-        String jsonStr = findBetween(body, left, right);
-        assert jsonStr != null;
-        if (jsonStr.isEmpty()) {
-            throw new Exception("Could not find " + varName + " in " + source);
-        }
-        return parseJSON(source, varName, prependJSON + jsonStr);
+    public static JSONObject findJSON(String source, String varName, String body, String leftRegex, String right, String prependJSON) throws Exception {
+        String jsonStr = betweenRegex(body, leftRegex, right);
+        if (jsonStr.isEmpty()) throw new Exception("Could not find " + varName);
+        return new JSONObject(cutAfterJS(prependJSON + jsonStr));
     }
 }

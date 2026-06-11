@@ -1,13 +1,15 @@
 # Ytdl-Java
 
-A simple Java library for fetching YouTube video information with support for both synchronous and asynchronous operations.
+A powerful and efficient Java library for fetching YouTube video metadata, deciphering signatures, and extracting all available stream formats by simulating multiple YouTube clients.
 
 ## Features
 
-- **Easy to Use:** Fetch video information with a single line of code.
-- **Asynchronous Support:** Use callbacks for non-blocking operations.
-- **Efficient Caching:** Reduces redundant network requests.
-- **Powered by OkHttp:** For fast and reliable HTTP requests.
+- **Advanced Extraction:** Spoofs various clients (iOS, Android, VR, TV, Web) to bypass format restrictions and retrieve maximum available streams.
+- **Native Async Support:** Fully utilizes Java's `CompletableFuture` for non-blocking, modern asynchronous operations.
+- **Java Records:** Clean, immutable data models for easy parsing and memory efficiency.
+- **JSON Export:** Easily convert extracted video formats directly into native `org.json.JSONObject` or string representations.
+- **Signature Deciphering:** Automatically resolves and deciphers YouTube's dynamic signature ciphers.
+- **Powered by OkHttp:** Fast, reliable, and thread-safe HTTP requests.
 
 ## Installation
 
@@ -19,60 +21,69 @@ Include Ytdl-Java in your project using Maven or Gradle.
 <dependency>
     <groupId>io.github.luoshenshi</groupId>
     <artifactId>ytdl-java</artifactId>
-    <version>1.0</version>
+    <version>1.0.1</version>
 </dependency>
 ```
 
-### Gradle (Kotlin)
+### Gradle
 
 ```groovy
-implementation("io.github.luoshenshi:ytdl-java:1.0")
+implementation "io.github.luoshenshi:ytdl-java:1.0.1"
 ```
 
 ## Usage
 
-### Synchronous Example
-
-Fetch video information synchronously:
+### Initialization
 
 ```java
-VideoInfo info = YTDL.getInfo("kJQP7kiw5Fk");
-System.out.println(info.getAuthorInfo());
+import io.github.luoshenshi.YTDL;
+
+YTDL ytdl = YTDL.builder().build();
 ```
 
-### Asynchronous Example
-
-Fetch video information asynchronously with a callback:
+### Async Example
 
 ```java
-YTDL.getInfoAsync("eYfjh0U6uQU", new YtdlResponse<>() {
-  @Override
-  public void onResponse(VideoInfo videoInfo) {
-    System.out.println(videoInfo.getFormats());
-  }
-
-  @Override
-  public void onFailure(Exception e) {
-    throw new IllegalArgumentException(e.getLocalizedMessage());
-  }
+ytdl.getVideoInfo("Egx0AXIIChA").thenAccept(info -> {
+    System.out.println("Title: " + info.title());
+    System.out.println("Author: " + info.author().name());
+    System.out.println("Views: " + info.views());
+}).exceptionally(e -> {
+    e.printStackTrace();
+    return null;
 });
-
-System.out.println("Request sent!");
 ```
 
-## API Documentation
+### Sync Example
 
-Ytdl-Java provides an intuitive API to interact with YouTube data. Here are some of the key classes and methods:
+```java
+VideoInfo info = ytdl.getVideoInfo("VZGt8DFyX6A").join();
+System.out.println(info.title());
+```
 
-- **`YTDL`**
-    - `getInfo(String videoId)`: Retrieves video information synchronously.
-    - `getInfoAsync(String videoId, YtdlResponse<VideoInfo> response)`: Retrieves video information asynchronously.
+### JSON Export
 
-- **`VideoInfo`**
-    - `getTitle()`: Returns the title of the video.
-    - `getAuthorInfo()`: Returns the author's information.
-    - `getLikes()`: Returns the number of likes.
-    - `getViews()`: Returns the number of views.
+```java
+JSONArray arr = new JSONArray();
+
+ytdl.getVideoInfo("kJQP7kiw5Fk").thenAccept(info -> {
+    for (VideoFormat f : info.formats()) {
+        arr.put(f.toJson());
+    }
+
+    System.out.println(arr.toString(2));
+});
+```
+
+### Cleanup
+
+```java
+ytdl.close();
+```
+
+## License
+
+MIT License
 
 ## Contributing
 
