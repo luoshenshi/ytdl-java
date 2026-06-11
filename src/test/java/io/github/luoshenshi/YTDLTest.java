@@ -1,10 +1,15 @@
 package io.github.luoshenshi;
 
-public class Main {
-    public static void main(String[] args) {
+import org.junit.jupiter.api.Test;
+
+class YTDLTest {
+
+    @Test
+    void shouldCreateInstance() {
+
         try (YTDL ytdl = YTDL.builder().build()) {
             ytdl.getVideoInfo("VZGt8DFyX6A").thenAccept(videoInfo -> {
-                System.out.println("Title: " + videoInfo.availableCountries());
+                System.out.println("Title: " + videoInfo.title());
             }).exceptionally(ex -> {
                 System.err.println("Extraction failed: " + ex.getMessage());
                 return null;

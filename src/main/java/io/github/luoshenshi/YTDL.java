@@ -12,16 +12,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-import static io.github.luoshenshi.Utils.findJSON;
-import static io.github.luoshenshi.Utils.request;
-import static io.github.luoshenshi.Utils.tryParseBetween;
+import static io.github.luoshenshi.Utils.*;
 import static io.github.luoshenshi.internal.Constants.BASE_URL;
 
 /**
  * The main entry point for the ytdl-java library.
  * Use {@link #builder()} to create a new instance.
  */
-public class YTDL implements AutoCloseable{
+public class YTDL implements AutoCloseable {
     private static final Logger log = LoggerFactory.getLogger(YTDL.class);
     private final OkHttpClient httpClient;
     private final SignatureDecipherer decipherer;
@@ -101,7 +99,7 @@ public class YTDL implements AutoCloseable{
         List<CompletableFuture<JSONObject>> futures = new ArrayList<>();
         String html5player = watchPage.optString("html5player");
         String visitorData = getVisitorData(watchPage);
-        
+
         futures.add(ClientSimulators.fetchIos(httpClient, videoId));
         futures.add(ClientSimulators.fetchAndroid(httpClient, videoId));
         futures.add(ClientSimulators.fetchAndroidVR(httpClient, videoId, html5player, visitorData));
